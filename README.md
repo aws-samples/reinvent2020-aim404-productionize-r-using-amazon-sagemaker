@@ -25,7 +25,7 @@ Once the stack creation completes, go to **Output** tab to find the RStudio IDE 
 
 
 
-![cloudformation_5](/Users/mengkanh/Repositories/HCLS-ML-Artifacts/JJ_SageMaker_Rstudio_Processing/docs/cloudformation_5.png)
+![cloudformation_5](./doc/cloudformation_5.png)
 
 
 
