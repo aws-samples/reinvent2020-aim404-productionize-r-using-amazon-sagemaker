@@ -1,0 +1,221 @@
+Parameters:
+  KeyName:
+    Description: SSH key pair to use for instance login
+    Type: AWS::EC2::KeyPair::KeyName
+  AcceptRStudioLicenseAndInstall:
+    Description: This CFN template installs RStudio Server to an EC2 instance. Please review and accept the AGPL v3 license http://www.gnu.org/licenses/agpl-3.0-standalone.html. 
+    Type: String
+    Default: Deny
+    AllowedValues:
+      - Accept
+      - Deny
+
+Conditions:
+  ShouldCreateInstance:
+    !Equals [Accept, !Ref AcceptRStudioLicenseAndInstall]
+  DenyInstallation:
+    !Equals [Deny, !Ref AcceptRStudioLicenseAndInstall]
+
+#mappings between regions and amis to launch    
+Mappings:
+  Region:
+    us-east-1:
+      HostAmi: ami-0ff8a91507f77f867
+    us-east-2:
+      HostAmi: ami-0b59bfac6be064b78
+    us-west-2:
+      HostAmi: ami-01fee56b22f308154
+    eu-west-1:
+      HostAmi: ami-047bb4163c506cd98
+
+Resources:
+  VPC:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: RStudio SageMaker VPC
+
+  VPCEndpoint:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PublicRouteTable
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcId: !Ref VPC
+
+  InternetGateway:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: RStudio SageMaker Internet Gateway
+
+  AttachGateway:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select
+        - '0'
+        - !GetAZs ''
+      Tags:
+        - Key: Name
+          Value: RStudio SageMaker Public Subnet
+
+  PublicRouteTable:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: RStudio SageMaker Public Route Table
+
+  PublicRoute:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  Instance:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyName
+      InstanceType: t3.xlarge 
+      ImageId: !FindInMap [Region, !Ref "AWS::Region", HostAmi]
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - Ref: PublicSubnetSecurityGroup
+      Tags:
+        - Key: Name
+          Value: RStudio Server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sudo apt-get -y update
+          sudo apt-get install -y wget r-base r-base-dev apt-transport-https ca-certificates gdebi-core curl gnupg-agent software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+          wget https://bootstrap.pypa.io/get-pip.py
+          sudo ln -sv /usr/bin/python3 /usr/bin/python
+          sudo python get-pip.py
+          sudo pip install sagemaker boto3 pandas 
+          sudo R -e "install.packages(c('reticulate', 'readr', 'curl', 'ggplot2', 'dplyr', 'stringr'), repos = 'http://cran.rstudio.com')"
+
+          wget https://download2.rstudio.org/server/bionic/amd64/rstudio-server-1.3.1093-amd64.deb
+          sudo gdebi rstudio-server-1.3.1093-amd64.deb
+
+          sudo rstudio-server restart  
+          #sudo service docker start
+
+          #sudo groupadd docker
+          sudo usermod -aG docker ubuntu
+
+  PublicSubnetSecurityGroup:
+    Condition: ShouldCreateInstance
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: rstudio-sagemaker-sg
+      GroupDescription: RStudio SageMaker Instance Security Group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: '22'
+          IpProtocol: tcp
+          ToPort: '22'
+        - CidrIp: 0.0.0.0/0
+          FromPort: '8787'
+          IpProtocol: tcp
+          ToPort: '8787'
+
+  EC2Role:
+    Condition: ShouldCreateInstance
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/IAMReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+      RoleName: ec2-rstudio-sagemaker
+
+  SageMakerRole:
+    Condition: ShouldCreateInstance
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+      RoleName: sagemaker-service-role
+
+  InstanceProfile:
+    Condition: ShouldCreateInstance
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: EC2Role
+      InstanceProfileName: rstudio-sagemaker-instance
+
+Outputs:
+  RStudio:
+    Condition: ShouldCreateInstance
+    Description: RStudio SSH command
+    Value: !Sub "ssh -L 8787:localhost:8787 -i ${KeyName}.pem ec2-user@${Instance.PublicDnsName}"
+  
+  RStudioURL:
+    Condition: ShouldCreateInstance
+    Description: RStudio public URL
+    Value: !Sub "${Instance.PublicDnsName}:8787"
+
+  RStudioAGPLv3Licence:
+    Condition: DenyInstallation
+    Description: This CFN template installs RStudio Server to an EC2 instance. Please restart the stack creation process, review and accept the AGPL v3 license http://www.gnu.org/licenses/agpl-3.0-standalone.html.
+    Value: "Denied"
