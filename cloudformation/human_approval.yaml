@@ -703,7 +703,7 @@ Resources:
             bucketName:
               - !Ref s3Bucket
             key:
-              - prefix: "data-test"
+              - prefix: "data"
       State: "ENABLED"
       Targets: 
         - 
@@ -720,6 +720,55 @@ Resources:
             InputTemplate: '{"Comment": "Executed from EventBridge", "city": "Melbourne", "eventID":
               <eventID>, "resources": <resources>, "detail":<detail>}'
           RoleArn: !Sub "${EventBridgeInvokeSfnRole.Arn}"
+
+  S3CloudTrailBucket: 
+    Type: AWS::S3::Bucket
+    Properties: {}
+
+  S3CloudTrailBucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: 
+        Ref: S3CloudTrailBucket
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Sid: "AWSCloudTrailAclCheck"
+            Effect: "Allow"
+            Principal: 
+              Service: "cloudtrail.amazonaws.com"
+            Action: "s3:GetBucketAcl"
+            Resource: 
+              !Sub "arn:aws:s3:::${S3CloudTrailBucket}"
+          - Sid: "AWSCloudTrailWrite"
+            Effect: "Allow"
+            Principal: 
+              Service: "cloudtrail.amazonaws.com"
+            Action: "s3:PutObject"
+            Resource:
+              !Sub "arn:aws:s3:::${S3CloudTrailBucket}/AWSLogs/${AWS::AccountId}/*"
+            Condition: 
+              StringEquals:
+                s3:x-amz-acl: "bucket-owner-full-control"
+
+  CloudTrailS3:
+    DependsOn: 
+      - S3CloudTrailBucketPolicy
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      EventSelectors: 
+        - DataResources: 
+            - Type: AWS::S3::Object
+              Values: 
+                - !Sub "arn:aws:s3:::${s3Bucket}/"
+          IncludeManagementEvents: false
+          ReadWriteType: WriteOnly
+      IncludeGlobalServiceEvents: true
+      IsLogging: true
+      IsMultiRegionTrail: true
+      S3BucketName: 
+        Ref: S3CloudTrailBucket
+      
 
 # End state machine that publishes to Lambda and sends an email with the link for approval
 Outputs:
