@@ -489,31 +489,48 @@ Resources:
                 });
             };
 
-  # LambdaVerifySESEmail:
-  #   Type: "AWS::Lambda::Function"
-  #   Properties:
-  #     Handler: "index.lambda_handler"
-  #     Role: !GetAtt LambdaSendEmailExecutionRole.Arn
-  #     Runtime: "nodejs12.x"
-  #     Timeout: "25"
-  #     Code:
-  #       ZipFile:
-  #         Fn::Sub: |
-  #           const AWS = require('aws-sdk');
-  #           exports.lambda_handler = (event, context, callback) => {
-  #             const ses = new AWS.SES({apiVersion: '2010-12-01'});
-  #             var params = {EmailAddress: "${Email}"};
-  #             ses.verifyEmailIdentity(params, function(err, data) {
-  #               if (err) console.log(err, err.stack); // an error occurred
-  #               else     console.log(data);           // successful response
-  #             });
-  #           };
+  LambdaVerifySESEmail:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "index.lambda_handler"
+      Role: !GetAtt LambdaSendEmailExecutionRole.Arn
+      Runtime: "nodejs12.x"
+      Timeout: "25"
+      Code:
+        ZipFile:
+          Fn::Sub: |
+            var AWS = require('aws-sdk');
+            var response = require('cfn-response');
+            exports.lambda_handler = (event, context, callback) => {
+              // For Delete requests, immediately send a SUCCESS response.
+              if (event.RequestType == "Delete") {
+                  response.send(event, context, "SUCCESS");
+                  return;
+              }
+              var responseStatus = "FAILED";
+              var responseData = {};
 
-  # LambdaCustomExecution:
-  #   Type: AWS::CloudFormation::CustomResource
-  #   Version: "1.0"
-  #   Properties:
-  #     ServiceToken: !GetAtt LambdaVerifySESEmail.Arn
+              const ses = new AWS.SES({apiVersion: '2010-12-01'});
+              var params = {EmailAddress: "michaelhsieh42@gmail.com"};
+              ses.verifyEmailIdentity(params, function(err, data) {
+                if (err) {
+                  console.log(err, err.stack);
+                  responseData = {Error: "SES email verification failed"};
+                } // an error occurred
+                else {
+                  console.log(data);
+                  responseStatus = "SUCCESS";
+                } // successful response
+                response.send(event, context, responseStatus, responseData);
+              });
+            };
+
+
+  LambdaCustomExecution:
+    Type: AWS::CloudFormation::CustomResource
+    Version: "1.0"
+    Properties:
+      ServiceToken: !GetAtt LambdaVerifySESEmail.Arn
 
   LambdaStateMachineExecutionRole:
     Type: "AWS::IAM::Role"
