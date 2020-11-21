@@ -190,7 +190,6 @@ Resources:
               });
             }
       Description: Lambda function that callback to AWS Step Functions
-      ## If not specified a unique name will be generated ## FunctionName: LambdaApprovalFunction
       Handler: index.handler
       Role: !GetAtt "LambdaApiGatewayIAMRole.Arn"
       Runtime: nodejs12.x
@@ -235,6 +234,9 @@ Resources:
 
   # Begin state machine that publishes to Lambda and sends an email with the link for approval
   HumanApprovalLambdaStateMachine:
+    DependsOn: 
+      - LambdaApprovalFunction
+      - LambdaHumanApprovalSendEmailFunction
     Type: AWS::StepFunctions::StateMachine
     Properties:
       RoleArn: !GetAtt LambdaStateMachineExecutionRole.Arn
@@ -525,7 +527,6 @@ Resources:
               });
             };
 
-
   LambdaCustomExecution:
     Type: AWS::CloudFormation::CustomResource
     Version: "1.0"
@@ -752,8 +753,7 @@ Resources:
                 s3:x-amz-acl: "bucket-owner-full-control"
 
   CloudTrailS3:
-    DependsOn: 
-      - S3CloudTrailBucketPolicy
+    DependsOn: S3CloudTrailBucketPolicy
     Type: AWS::CloudTrail::Trail
     Properties:
       EventSelectors: 
