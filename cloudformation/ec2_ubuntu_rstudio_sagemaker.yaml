@@ -172,8 +172,12 @@ Resources:
 
           # clone github codes into ubuntu user dir
           # git clone https://github.com/aws-samples/reinvent2020-aim404-productionize-r-using-amazon-sagemaker.git
-          # git clone https://github.com/aws/amazon-sagemaker-examples.git
           
+          su - ubuntu -c "mkdir /home/ubuntu/.aws/"
+          su - ubuntu -c "echo [default] >> /home/ubuntu/.aws/config"
+          su - ubuntu -c "echo region = ${AWS::Region} >> /home/ubuntu/.aws/config"
+          su - ubuntu -c "echo export RETICULATE_PYTHON=/usr/bin/python >> /home/ubuntu/.bashrc"
+
           echo "Success" >> ~/EC2_INIT_COMPLETED
 
   PublicSubnetSecurityGroup:
