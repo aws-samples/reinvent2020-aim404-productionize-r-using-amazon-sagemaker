@@ -15,21 +15,24 @@ Parameters:
 Resources:
   # Begin API Gateway Resources
   ExecutionApi:
-    Type: "AWS::ApiGateway::RestApi"
+    Type: AWS::ApiGateway::RestApi
     Properties:
       Name: "Human approval endpoint"
       Description: "HTTP Endpoint backed by API Gateway and Lambda"
       FailOnWarnings: true
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   ExecutionResource:
-    Type: 'AWS::ApiGateway::Resource'
+    Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref ExecutionApi
       ParentId: !GetAtt "ExecutionApi.RootResourceId"
       PathPart: execution
 
   ExecutionMethod:
-    Type: "AWS::ApiGateway::Method"
+    Type: AWS::ApiGateway::Method
     Properties:
       AuthorizationType: NONE
       HttpMethod: GET
@@ -73,13 +76,16 @@ Resources:
             method.response.header.Location: true
 
   ApiGatewayAccount:
-    Type: 'AWS::ApiGateway::Account'
+    Type: AWS::ApiGateway::Account
     Properties:
       CloudWatchRoleArn: !GetAtt "ApiGatewayCloudWatchLogsRole.Arn"
   
   ApiGatewayCloudWatchLogsRole:
-    Type: 'AWS::IAM::Role'
+    Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -102,7 +108,7 @@ Resources:
   ExecutionApiStage:
     DependsOn:
       - ApiGatewayAccount
-    Type: 'AWS::ApiGateway::Stage'
+    Type: AWS::ApiGateway::Stage
     Properties:
       DeploymentId: !Ref ApiDeployment
       MethodSettings:
@@ -112,9 +118,12 @@ Resources:
           ResourcePath: /*
       RestApiId: !Ref ExecutionApi
       StageName: states
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   ApiDeployment:
-    Type: "AWS::ApiGateway::Deployment"
+    Type: AWS::ApiGateway::Deployment
     DependsOn:
       - ExecutionMethod
     Properties:
@@ -125,7 +134,7 @@ Resources:
   # Begin
   # Lambda that will be invoked by API Gateway
   LambdaApprovalFunction:
-    Type: 'AWS::Lambda::Function'
+    Type: AWS::Lambda::Function
     Properties:
       Code:
         ZipFile:
@@ -193,9 +202,12 @@ Resources:
       Handler: index.handler
       Role: !GetAtt "LambdaApiGatewayIAMRole.Arn"
       Runtime: nodejs12.x
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   LambdaApiGatewayInvoke:
-    Type: "AWS::Lambda::Permission"
+    Type: AWS::Lambda::Permission
     Properties:
       Action: "lambda:InvokeFunction"
       FunctionName: !GetAtt "LambdaApprovalFunction.Arn"
@@ -203,8 +215,11 @@ Resources:
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ExecutionApi}/*"
 
   LambdaApiGatewayIAMRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -239,6 +254,9 @@ Resources:
       - LambdaHumanApprovalSendEmailFunction
     Type: AWS::StepFunctions::StateMachine
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       RoleArn: !GetAtt LambdaStateMachineExecutionRole.Arn
       DefinitionString:
         Fn::Sub: |
@@ -422,8 +440,11 @@ Resources:
           }
   
   LambdaHumanApprovalSendEmailFunction:
-    Type: "AWS::Lambda::Function"
+    Type: AWS::Lambda::Function
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       Handler: "index.lambda_handler"
       Role: !GetAtt LambdaSendEmailExecutionRole.Arn
       Runtime: "nodejs12.x"
@@ -492,8 +513,11 @@ Resources:
             };
 
   LambdaVerifySESEmail:
-    Type: "AWS::Lambda::Function"
+    Type: AWS::Lambda::Function
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       Handler: "index.lambda_handler"
       Role: !GetAtt LambdaSendEmailExecutionRole.Arn
       Runtime: "nodejs12.x"
@@ -534,8 +558,11 @@ Resources:
       ServiceToken: !GetAtt LambdaVerifySESEmail.Arn
 
   LambdaStateMachineExecutionRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -624,8 +651,11 @@ Resources:
                     iam:PassedToService: "sagemaker.amazonaws.com"
 
   LambdaSendEmailExecutionRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -667,8 +697,11 @@ Resources:
                   - "*"
 
   EventBridgeInvokeSfnRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -724,7 +757,10 @@ Resources:
 
   S3CloudTrailBucket: 
     Type: AWS::S3::Bucket
-    Properties: {}
+    Properties:
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   S3CloudTrailBucketPolicy: 
     Type: AWS::S3::BucketPolicy
@@ -768,6 +804,9 @@ Resources:
       IsMultiRegionTrail: true
       S3BucketName: 
         Ref: S3CloudTrailBucket
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       
 
 # End state machine that publishes to Lambda and sends an email with the link for approval
