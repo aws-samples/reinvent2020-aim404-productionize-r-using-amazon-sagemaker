@@ -537,7 +537,7 @@ Resources:
               var responseData = {};
 
               const ses = new AWS.SES({apiVersion: '2010-12-01'});
-              var params = {EmailAddress: "michaelhsieh42@gmail.com"};
+              var params = {EmailAddress: "${Email}"};
               ses.verifyEmailIdentity(params, function(err, data) {
                 if (err) {
                   console.log(err, err.stack);
@@ -737,7 +737,7 @@ Resources:
             bucketName:
               - !Ref s3Bucket
             key:
-              - prefix: "data"
+              - prefix: "r-fable-trip-forecasting/new-data"
       State: "ENABLED"
       Targets: 
         - 
