@@ -16,17 +16,18 @@ Conditions:
   DenyInstallation:
     !Equals [Deny, !Ref AcceptRStudioLicenseAndInstall]
 
-#mappings between regions and amis to launch    
+#mappings between regions and amis to launch
+# instance: Ubuntu Server 20.04 LTS (HVM), SSD Volume Type 64-bit x86
 Mappings:
   Region:
     us-east-1:
-      HostAmi: ami-0ff8a91507f77f867
+      HostAmi: ami-0885b1f6bd170450c
     us-east-2:
-      HostAmi: ami-0b59bfac6be064b78
+      HostAmi: ami-0a91cd140a1fc148a
     us-west-2:
-      HostAmi: ami-01fee56b22f308154
+      HostAmi: ami-06e54d05255faf8f6
     eu-west-1:
-      HostAmi: ami-047bb4163c506cd98
+      HostAmi: ami-0aef57767f5404a3c
 
 Resources:
   VPC:
@@ -36,8 +37,10 @@ Resources:
       CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       Tags:
-      - Key: Name
-        Value: RStudio SageMaker VPC
+        - Key: Name
+          Value: RStudio SageMaker VPC
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   VPCEndpoint:
     Condition: ShouldCreateInstance
@@ -53,8 +56,10 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-      - Key: Name
-        Value: RStudio SageMaker Internet Gateway
+        - Key: Name
+          Value: RStudio SageMaker Internet Gateway
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   AttachGateway:
     Condition: ShouldCreateInstance
@@ -76,6 +81,8 @@ Resources:
       Tags:
         - Key: Name
           Value: RStudio SageMaker Public Subnet
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   PublicRouteTable:
     Condition: ShouldCreateInstance
@@ -85,6 +92,8 @@ Resources:
       Tags:
         - Key: Name
           Value: RStudio SageMaker Public Route Table
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   PublicRoute:
     Condition: ShouldCreateInstance
@@ -104,6 +113,10 @@ Resources:
   Instance:
     Condition: ShouldCreateInstance
     Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT30M
     Properties:
       KeyName: !Ref KeyName
       InstanceType: t3.xlarge 
@@ -115,30 +128,53 @@ Resources:
       Tags:
         - Key: Name
           Value: RStudio Server
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          sudo apt-get -y update
-          sudo apt-get install -y wget r-base r-base-dev apt-transport-https ca-certificates gdebi-core curl gnupg-agent software-properties-common
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-          sudo apt-get update
-          sudo apt-get install docker-ce docker-ce-cli containerd.io
+          usermod --password $(openssl passwd -1 rstudio) ubuntu
+          mkdir ~/Downloads/
 
-          wget https://bootstrap.pypa.io/get-pip.py
-          sudo ln -sv /usr/bin/python3 /usr/bin/python
-          sudo python get-pip.py
-          sudo pip install sagemaker boto3 pandas 
-          sudo R -e "install.packages(c('reticulate', 'readr', 'curl', 'ggplot2', 'dplyr', 'stringr'), repos = 'http://cran.rstudio.com')"
+          wget -P ~/Downloads/ https://bootstrap.pypa.io/get-pip.py
+          ln -sv /usr/bin/python3 /usr/bin/python
+          python ~/Downloads/get-pip.py
+          pip install sagemaker boto3 pandas
 
-          wget https://download2.rstudio.org/server/bionic/amd64/rstudio-server-1.3.1093-amd64.deb
-          sudo gdebi rstudio-server-1.3.1093-amd64.deb
+          wget -P ~/Downloads/ https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          pip install ~/Downloads/aws-cfn-bootstrap-py3-latest.tar.gz
 
-          sudo rstudio-server restart  
-          #sudo service docker start
+          echo "deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/" >> /etc/apt/sources.list
+          apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+          apt-get update
+          apt-get install -y tzdata 
+          apt-get install -y wget r-base r-base-dev apt-transport-https ca-certificates gdebi-core curl \
+                             gnupg-agent software-properties-common apt-transport-https libcurl4-openssl-dev libsodium-dev
+          R -e "install.packages(c('reticulate', 'readr', 'curl', 'ggplot2', 'dplyr', 'stringr', 'fable', 'tsibble', 'dplyr', 'feasts', 'remotes', 'urca', 'sodium', 'plumber', 'jsonlite'), repos = 'http://cran.rstudio.com')"
+          # R -e "library('reticulate');use_python('/usr/bin/python');"
+          # export RETICULATE_PYTHON=/usr/bin/python
+          R --version >> ~/R_VERSION_INSTALLED
 
-          #sudo groupadd docker
-          sudo usermod -aG docker ubuntu
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+          add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io
+          # groupadd docker
+          usermod -aG docker ubuntu
+          
+          wget -P ~/Downloads/ https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+          unzip ~/Downloads/awscli-exe-linux-x86_64.zip -d ~/Downloads/
+          ~/Downloads/aws/install
+
+          wget -P ~/Downloads/ https://download2.rstudio.org/server/bionic/amd64/rstudio-server-1.3.1093-amd64.deb
+          gdebi -n ~/Downloads/rstudio-server-1.3.1093-amd64.deb
+          cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region} # check 1
+
+          # clone github codes into ubuntu user dir
+          # git clone https://github.com/aws-samples/reinvent2020-aim404-productionize-r-using-amazon-sagemaker.git
+          # git clone https://github.com/aws/amazon-sagemaker-examples.git
+          
+          echo "Success" >> ~/EC2_INIT_COMPLETED
 
   PublicSubnetSecurityGroup:
     Condition: ShouldCreateInstance
@@ -156,8 +192,11 @@ Resources:
           FromPort: '8787'
           IpProtocol: tcp
           ToPort: '8787'
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
-  EC2Role:
+  EC2SageMakerRole:
     Condition: ShouldCreateInstance
     Type: AWS::IAM::Role
     Properties:
@@ -175,25 +214,10 @@ Resources:
         - arn:aws:iam::aws:policy/IAMReadOnlyAccess
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
-      RoleName: ec2-rstudio-sagemaker
-
-  SageMakerRole:
-    Condition: ShouldCreateInstance
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - sagemaker.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: "/"
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
-      RoleName: sagemaker-service-role
+      # RoleName: ec2-rstudio-sagemaker
+      Tags:
+        - Key: CreatedFor
+          Value: reInvent2020 AIM404 Demo
 
   InstanceProfile:
     Condition: ShouldCreateInstance
@@ -201,14 +225,14 @@ Resources:
     Properties:
       Path: "/"
       Roles:
-      - Ref: EC2Role
-      InstanceProfileName: rstudio-sagemaker-instance
+      - Ref: EC2SageMakerRole
+      # InstanceProfileName: rstudio-sagemaker-instance
 
 Outputs:
   RStudio:
     Condition: ShouldCreateInstance
     Description: RStudio SSH command
-    Value: !Sub "ssh -L 8787:localhost:8787 -i ${KeyName}.pem ec2-user@${Instance.PublicDnsName}"
+    Value: !Sub "ssh -L 8787:localhost:8787 -i ${KeyName}.pem ubuntu@${Instance.PublicDnsName}"
   
   RStudioURL:
     Condition: ShouldCreateInstance
