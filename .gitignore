@@ -43,3 +43,6 @@ docs/
 
 # translation temp files
 po/*~
+
+# hidden DS_Store file
+.DS_Store
