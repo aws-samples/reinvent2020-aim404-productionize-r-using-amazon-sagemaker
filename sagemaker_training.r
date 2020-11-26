@@ -62,7 +62,7 @@ processor <- sagemaker$processing$ScriptProcessor(role = role,
                                                   sagemaker_session = session)
 
 # define input/output
-output_processing_path <- file.path(output_path, 'evaluation', 'output')
+output_processing_path <- sprintf('%s/%s/%s', output_path, 'evaluation', 'output') # on S3
 processing_input <- list(sagemaker$processing$ProcessingInput(input_name = 'model-for-evaluate', 
                                                               source = estimator$model_data, 
                                                               destination = '/opt/ml/processing/input'))
