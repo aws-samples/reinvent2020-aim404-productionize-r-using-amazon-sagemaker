@@ -10,10 +10,10 @@ In this repository, the code is provided for you to replicate the demo in the se
 - [Prototyping in RStudio](#prototyping-in-rstudio)
 - [Scale with Amazon SageMaker](#scale-with-amazon-sagemaker): 
 - [Orchestrate with AWS Step Functions](#orchestrate-with-aws-step-functions)
-- [Additional resources](#related-resources)
+- [Additional resources](#additional-resources)
 
 ## Prerequisite
-We assume you have a RStudio instance running on your laptop or on a EC2 instance. You will need the following IAM policies: `AmazonSageMakerFullAccess` and `AmazonEC2ContainerRegistryFullAccess` to be attached to your IAM role that is used in your local environment, eg. EC2 or local. If you do not have a RStudio IDE, please follow the instruction in [Prerequisite](./doc/prerequisite.md) to deploy a [RStudio Server](https://rstudio.com/products/rstudio/download-server/) on a EC2 instance with all the necessary permission and networking for your convenience.
+We assume you have a RStudio instance running on your laptop or on a EC2 instance. You will need the following IAM policies: `AmazonSageMakerFullAccess` and `AmazonEC2ContainerRegistryFullAccess` to be attached to your IAM role and credential that is used in your environment, eg. [EC2](https://aws.amazon.com/premiumsupport/knowledge-center/assign-iam-role-ec2-instance/) or [local computer](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). If you do not have a RStudio IDE, please follow the instruction in [Prerequisite](./doc/prerequisite.md) to deploy a [RStudio Server](https://rstudio.com/products/rstudio/download-server/) on a EC2 instance with all the necessary permission and networking for your convenience.
 
 ## Prototyping in RStudio
 Suppose your customer send you a dataset and ask you to forecast the number of visitors to city of Melbourne in Australia for the next 5 years. Let’s log on to the IDE to start playing with the data. You will start with the prototyping script [fable_demo.r](./fable_demo.r) where we do a simple exploratory analysis, visualization and modeling using ETS and ARIMA algorithms. 
@@ -175,7 +175,7 @@ Let's take a look at how we can orchestrate a machine learning workflow for our 
 Consider the following scenario: you, the lead data scientist, has just completed the prototyping and experimentation and are happy with the models you build. you get an update on the actual visitors statistics from the customer every week. It makes sense to include the latest datapoints into your modeling so validate your previous model and retrain a new model. Instead of logging back onto the RStudio IDE and rerun the entire experiement, which you could for sure, it would be great to automate the process given that we have already built up the steps that work. What's even better is to allow a human review as a quality gate to make sure the models we are building are meeting the satisfactory standard before we push out the models.
 
 ### Solution
-We can design an even-driven architecture that would automate the machine learning training, evaluation and review process every time we have an updated dataset. By using AWS serverless services, the event-driven architecture that takes away the infrastucture management, and repetitive code execution would allow your team to focus what's most important to your business goal. 
+We can design an event-driven architecture that would automate the machine learning training, evaluation and review process every time we have an updated dataset. By using AWS serverless services, the event-driven architecture that takes away the infrastucture management, and repetitive code execution would allow your team to focus what's most important to your business goal. 
 
 [AWS Step Functions](https://aws.amazon.com/step-functions/) is a serverless function orchestrator that makes it easy to sequence [AWS Lambda](https://aws.amazon.com/lambda/) functions and multiple AWS services into business-critical applications. It has [native integration with Amazon SageMaker features](https://docs.aws.amazon.com/step-functions/latest/dg/connect-sagemaker.html), meaning that it is easy to put our [SageMaker Training](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateTrainingJob.html) and [SageMaker Processing](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html) jobs into a Step Functions workflow. [Amazon EventBridge](https://aws.amazon.com/eventbridge/) makes it easy to set up rules to trigger a AWS Step Functions workflow in real time every time we upload new data to a S3 bucket.
 
@@ -183,7 +183,7 @@ Below is a Step Function workflow we are using in the demo and how it works.
 
 ![sfn-workflow](./doc/stepfunctions_graph_horizontal.png)
 
-An Amazon EventBridge rule and AWS CloudTrail are setup so that a new execution of the AWS Step Functions workflow will be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function will be executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (SES)](https://aws.amazon.com/ses/). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model will be created and saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) for inference use.
+An Amazon EventBridge rule and AWS CloudTrail are setup so that a new execution of the AWS Step Functions workflow will be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function will be executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (SES)](https://aws.amazon.com/ses/) (`Send email for approval`). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model will be created and saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) (`Save Model`) for inference use.
 
 The architecture diagram is shown below.
 
@@ -209,7 +209,7 @@ We can trigger an execution by uploading the `tourism_tsbl.rds` to the `s3Bucket
 s3_client$upload_file(rds_file, bucket, 'r-fable-trip-forecasting/new-data/tourism_tsbl.rds')
 ```
 
-Switching to [AWS Step Functions console](https://us-west-2.console.aws.amazon.com/states/home?region=us-west-2#/statemachines), you will see a new execution in running state.
+Switching to [AWS Step Functions console](https://us-west-2.console.aws.amazon.com/states/home?region=us-west-2#/statemachines), you will see a new execution in running state,
 
 ![stepfunction_exe1](./doc/stepfunctions_execution_1.png)
 
@@ -217,7 +217,7 @@ and its progress.
 
 ![stepfunction_exe2](./doc/stepfunctions_execution_2.png)
 
-Once the workflow moves pass `Evalue model` step, you will receive an email with subject *Required approval from AWS Step Functions* with all the information about the trained model, a visualization of the forecasting that we saw during the prototyping. At the bottom, you can either approve or reject this model and will be redirected to AWS Step Functions console.
+Once the workflow moves pass `Evaluate model` step, you will receive an email *"Required approval from AWS Step Functions"* with all the information about the trained model, a visualization of the forecasting that we saw during the prototyping. At the bottom, you can either approve or reject this model and will be redirected to AWS Step Functions console.
 
 ![email](./doc/email.png)
 
@@ -231,7 +231,7 @@ After the demo, please delete all the resources created by the two CloudFormatio
 ![cleanup](./doc/cloudformation_cleanup.png)
 
 
-## Related resources
+## Additional resources
 
 [blog Statistical simulation with SM Processing]
 
