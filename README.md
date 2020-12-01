@@ -13,7 +13,15 @@ In this repository, the code is provided for you to replicate the demo in the se
 - [Additional resources](#additional-resources)
 
 ## Prerequisite
-We assume you have a RStudio instance running on your laptop or on a EC2 instance. You will need the following IAM policies: `AmazonSageMakerFullAccess` and `AmazonEC2ContainerRegistryFullAccess` to be attached to your IAM role and credential that is used in your environment, eg. [EC2](https://aws.amazon.com/premiumsupport/knowledge-center/assign-iam-role-ec2-instance/) or [local computer](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). If you do not have a RStudio IDE, please follow the instruction in [Prerequisite](./doc/prerequisite.md) to deploy a [RStudio Server](https://rstudio.com/products/rstudio/download-server/) on a EC2 instance with all the necessary permission and networking for your convenience.
+We assume you have an RStudio instance running on your laptop or on a EC2 instance. You will need the following IAM policies: `AmazonSageMakerFullAccess` and `AmazonEC2ContainerRegistryFullAccess` to be attached to your IAM role and credential that is used in your environment, eg. [Amazon EC2](https://aws.amazon.com/premiumsupport/knowledge-center/assign-iam-role-ec2-instance/) or [local computer](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). The R libraries that are used in the demo are:
+- fable==0.2.1, fabletool==0.2.1
+- feasts==0.1.5
+- tsibble==0.9.3
+- reticulate==0.16
+- dplyr==1.0.2
+- ggplot2==3.3.2 
+
+If you do not have an RStudio IDE, please follow the [instruction](./doc/prerequisite.md) to deploy an [RStudio Server](https://rstudio.com/products/rstudio/download-server/) on an EC2 instance with all the necessary permission and networking for your convenience.
 
 ## Prototyping in RStudio
 Suppose your customer send you a dataset and ask you to forecast the number of visitors to city of Melbourne in Australia for the next 5 years. Let’s log on to the IDE to start playing with the data. You will start with the prototyping script [fable_demo.r](./fable_demo.r) where we do a simple exploratory analysis, visualization and modeling using ETS and ARIMA algorithms. 
@@ -75,8 +83,8 @@ processing_input_path <- file.path(processing_path, 'input')
 processing_output_path <- file.path(processing_path, 'output')
 ```
 
-### 2. Refactor the code into **train**, **evaluate** and **serve** as that how SageMaker execute the codes from the container for training, evaluating and serving the model. 
-In our prototype, we do a forecast modeling, followed by an analysis of the model performance and a visualization. We will be refracting the modeling part into the function `train` (insert link to the lines) and the analysis into `evaluate`. We will be calling the `train` and `evaluate` separately by SageMaker using SageMaker Training and Processing, respectively.
+### 2. Refactor the code into **train**, **evaluate** as that how SageMaker execute the codes from the container for training, and evaluating the model. 
+In our prototype, we do a forecast modeling, followed by an analysis of the model performance and a visualization. We will be refracting the modeling part into the function `train` (insert link to the lines) and the analysis into `evaluate`. Amazon SageMaker will be calling the `train` and `evaluate` in a SageMaker Training job ([by default](https://docs.aws.amazon.com/sagemaker/latest/dg/your-algorithms-training-algo-dockerfile.html)] and SageMaker Processing job ([by design](https://docs.aws.amazon.com/sagemaker/latest/dg/build-your-own-processing-container.html#byoc-run-image)), respectively.
 
 ```R
 train <- function() {
@@ -105,7 +113,7 @@ evaluate <- function(city) {
 }
 ```
 
-
+If you would like to host the model, you can do so inside a `serve` function
 The SageMaker-ready script is in [fable_sagemaker.r](./fable_sagemaker.r). 
 
 Now we are ready to run the script [fable_sagemaker.r](./fable_sagemaker.r) with Amazon SageMaker. Let's open the script [sagemaker_training.r](./sagemaker_training.r). We will be communicating with Amazon SageMaker using the SageMaker SDK through reticulate, a R interface to python libraries. 
@@ -113,11 +121,12 @@ Now we are ready to run the script [fable_sagemaker.r](./fable_sagemaker.r) with
 ```R
 ## Getting libraries
 library(reticulate)
+use_python('/usr/bin/python') # instruct reticulate to use the system python
 sagemaker <- import('sagemaker')
 boto3 <- import('boto3')
 ```
 
-We will build a container image defined in the [Dockerfile](./Dockerfile) and push the container image to [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/) with a series of shell commands in [build_and_push_docker.sh](./build_and_push_docker.sh).
+We will build a container image defined in the [Dockerfile](./Dockerfile) and push the container image to [Amazon Elastic Container Registry (Amazon ECR)](https://aws.amazon.com/ecr/) with a series of shell commands in [build_and_push_docker.sh](./build_and_push_docker.sh).
 
 ```R
 # Amazon SageMaker runs your code in a container image with the dependencies.
@@ -183,7 +192,7 @@ Below is a Step Function workflow we are using in the demo and how it works.
 
 ![sfn-workflow](./doc/stepfunctions_graph_horizontal.png)
 
-An Amazon EventBridge rule and AWS CloudTrail are setup so that a new execution of the AWS Step Functions workflow will be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function will be executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (SES)](https://aws.amazon.com/ses/) (`Send email for approval`). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model will be created and saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) (`Save Model`) for inference use.
+[An Amazon EventBridge rule and a AWS CloudTrail Trail](https://docs.aws.amazon.com/eventbridge/latest/userguide/log-s3-data-events.html) are setup so that a new execution of the AWS Step Functions workflow will be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function will be executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (SES)](https://aws.amazon.com/ses/) (`Send email for approval`). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model will be created and saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) (`Save Model`) for inference use.
 
 The architecture diagram is shown below.
 
@@ -191,7 +200,7 @@ The architecture diagram is shown below.
 
 ### Setup
 Don't worry. All the resources in the architecture is ready for you to deploy in a CloudFormation template. Please follow the [link](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template) to create a new stack with [the template](./cloudformation/human_approval.yaml) in the CloudFormation console. This time, you would need to provide the following parameters:
-- ContainerImage: the URI of the container image we used for SageMaker Training and Processing in a form of `{account-id}.dkr.ecr.{region}.amazonaws.com/r-fable-trip-forecasting:latest`. You can get it in ECR console, or the `image` variable from the script [sagemaker_training.r](./sagemaker_training.r) in RStudio IDE.
+- ContainerImage: the URI of the container image we used for SageMaker Training and Processing in a form of `{account-id}.dkr.ecr.{region}.amazonaws.com/r-fable-trip-forecasting:latest`. You can get it in ECR console, or the `image` variable from the script [sagemaker_training.r](./sagemaker_training.r) in the RStudio IDE.
 - Email: an email address that will be used to send and receive the evaluation report sent by Amazon SES. Note that you will receive a verification email during the CloudFormation stack creation. You need to verify it before receiving emails from the workflow.
 - SageMakerExecutionRoleArn: the IAM role ARN `role` that we use in SageMaker Training and Processing jobs in [sagemaker_training.r](./sagemaker_training.r). 
 - s3Bucket: A S3 bucket where we are going to save the output and setup the Amazon EventBridge trigger. You can use the `bucket` defined in [sagemaker_training.r](./sagemaker_training.r).
@@ -201,7 +210,7 @@ Don't worry. All the resources in the architecture is ready for you to deploy in
 The stack creation will take about 2 minutes.
 
 ### Execution
-We can trigger an execution by uploading the `tourism_tsbl.rds` to the `s3Bucket` that we defined in the stack with a prefix of `r-fable-trip-forecasting/new-data`. Why `r-fable-trip-forecasting/new-data`? Because that's how we defined [the EventRule with Amazon EventBridge](https://github.com/aws-samples/reinvent2020-aim404-productionize-r-using-amazon-sagemaker/blob/7f476b629b6d2a30913039d1acefa6f474d709ba/cloudformation/human_approval.yaml#L740). So back to RStudio IDE, we run the following code to upload the file to S3.
+We can trigger an execution by uploading the `tourism_tsbl.rds` to the `s3Bucket` that we defined in the stack with a prefix of `r-fable-trip-forecasting/new-data`. Why `r-fable-trip-forecasting/new-data`? Because that's how we defined [the EventRule with Amazon EventBridge](https://github.com/aws-samples/reinvent2020-aim404-productionize-r-using-amazon-sagemaker/blob/7f476b629b6d2a30913039d1acefa6f474d709ba/cloudformation/human_approval.yaml#L740). So back to the RStudio IDE, we run the following code to upload the file to S3.
 
 ```R
 ###################################
@@ -233,7 +242,7 @@ After the demo, please delete all the resources created by the two CloudFormatio
 
 ## Additional resources
 
-[blog Statistical simulation with SM Processing]
+The human approval architecture is inspired by and has taken parts from [Deploying a Human Approval Project](https://docs.aws.amazon.com/step-functions/latest/dg/tutorial-human-approval.html).
 
 ## Security
 

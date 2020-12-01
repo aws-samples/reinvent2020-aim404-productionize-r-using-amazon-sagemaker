@@ -4,7 +4,7 @@ setwd("~/reinvent2020-aim404-productionize-r-using-amazon-sagemaker")
 ###################################
 ## Getting libraries
 library(reticulate)
-use_python('/usr/bin/python')
+use_python('/usr/bin/python') # instruct reticulate to use the system python
 sagemaker <- import('sagemaker')
 boto3 <- import('boto3')
 library(tsibble)
