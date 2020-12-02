@@ -1,6 +1,6 @@
 # Productionizing R workload with Amazon SageMaker
 
-Welcome to reInvent 2020 AIML session 404 "Productionizing R workloads using Amazon SageMaker". 
+Welcome to reInvent 2020 AIML session 404 **Productionizing R workloads using Amazon SageMaker**. 
 
 R language and its rich ecosystem with more than 16,000 packages dedicated to statistics and machine learning are widely used by statisticians and data scientists in industries, such as energy, healthcare, life science, and financial services. Customers using R can run simulation and machine learning securely and at scale with Amazon SageMaker while also reducing the cost of development by using the fully elastic resources in the cloud. In this session, learn how to build, train, and deploy statistical and ML models in R at scale using Amazon SageMaker from your IDE.
 
@@ -10,6 +10,7 @@ In this repository, the code is provided for you to replicate the demo in the se
 - [Prototyping in RStudio](#prototyping-in-rstudio)
 - [Scale with Amazon SageMaker](#scale-with-amazon-sagemaker): 
 - [Orchestrate with AWS Step Functions](#orchestrate-with-aws-step-functions)
+- [Cleaning up](#cleaning-up)
 - [Additional resources](#additional-resources)
 
 ## Prerequisite
@@ -143,7 +144,7 @@ sagemaker <- import('sagemaker')
 boto3 <- import('boto3')
 ```
 
-We first build a Docker container image defined in the [Dockerfile](./Dockerfile) and push the container image to [Amazon Elastic Container Registry (Amazon ECR)](https://aws.amazon.com/ecr/) with a series of shell commands in [build_and_push_docker.sh](./build_and_push_docker.sh).
+We first build a Docker container image defined in the [Dockerfile](./Dockerfile) and push the container image to [Amazon Elastic Container Registry (Amazon ECR)](https://aws.amazon.com/ecr/) with a series of shell commands in [build_and_push_docker.sh](./build_and_push_docker.sh). The build takes about 5-10 minutes. After the execution, we have a container image that has the R runtime dependencies built and the script `fable_sagemaker.r` copied into.
 
 ```R
 # Amazon SageMaker runs your code in a container image with the dependencies.
@@ -236,7 +237,7 @@ Below is a Step Function workflow we are using in the demo and how it works.
 
 ![sfn-workflow](./doc/stepfunctions_graph_horizontal.png)
 
-[An Amazon EventBridge rule and a AWS CloudTrail Trail](https://docs.aws.amazon.com/eventbridge/latest/userguide/log-s3-data-events.html) are setup so that a new execution of the AWS Step Functions workflow can be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function is executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (SES)](https://aws.amazon.com/ses/) (`Send email for approval`). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model is created and is saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) (`Save Model`) for inference use.
+[An Amazon EventBridge rule and a AWS CloudTrail Trail](https://docs.aws.amazon.com/eventbridge/latest/userguide/log-s3-data-events.html) are setup so that a new execution of the AWS Step Functions workflow can be triggered when data is dropped on to a specific bucket location. The workflow starts with a SageMaker Training job (`Train model (r-fable-forecasting)`) to train a forecasting model using the container we have built, and generates evaluation report for the model using a SageMaker Processing job (`Evaluate model`). Then a AWS Lambda function is executed to send an email which includes model information and evaluation to a reviewer using [Amazon Simple Email Service (Amazon SES)](https://aws.amazon.com/ses/) (`Send email for approval`). Also within the email, reviewer can decide to approve the model or reject the model with a click of an hyperlink, backed by [Amazon API Gateway](https://aws.amazon.com/api-gateway/). Once approved, the model is created and is saved as a [SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html) (`Save Model`) for inference use.
 
 The architecture diagram is shown below.
 
@@ -279,9 +280,13 @@ Once a model is approved, the model will become available for inference in [Amaz
 ![model](./doc/sm_model.png)
 
 ## Cleaning up
-You are reaching the end of the demo. After the demo, please delete all the resources created by the two CloudFormation stacks from the [CloudFormation console](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks?) to avoid incurring unnecessary cost. Note that the deletion initiated from CloudFormation console will not delete objects and models created by SageMaker. 
+You are reaching the end of the demo. After the demo, please delete all the resources created by the two CloudFormation stacks from the [CloudFormation console](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks?) to avoid incurring unnecessary cost. 
 
 ![cleanup](./doc/cloudformation_cleanup.png)
+
+Note that the deletion initiated from CloudFormation console does not delete objects in S3 buckets, S3 buckets, verified email address in Amazon SES and models created in Amazon SageMaker. Please remove them individually. To remove the verified email adress in Amazon SES, please go to the [Amazon SES console](https://us-west-2.console.aws.amazon.com/ses/home?region=us-west-2#verified-senders-email:), select the email address you provided, and hit **Remove**.
+
+![remove_email](./doc/email_remove.png)
 
 ## Additional resources
 
