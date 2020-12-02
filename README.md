@@ -26,7 +26,7 @@ If you do not have an RStudio IDE, please follow the [instruction](./doc/prerequ
 
 Once you are logged into the RStudio IDE, please clone the code repository in the Terminal.
 
-```bash
+```shell
 git clone https://github.com/aws-samples/reinvent2020-aim404-productionize-r-using-amazon-sagemaker.git
 ```
 
@@ -165,9 +165,9 @@ We can now run our script in the fully managed Amazon SageMaker Training infrast
 estimator <- sagemaker$estimator$Estimator(role = role,
                                            image_uri = image,
                                            instance_type = 'ml.m4.xlarge',
-                                           instance_count = 1,
-                                           volume_size_in_gb = 5,
-                                           max_run = 3600,
+                                           instance_count = 1L,
+                                           volume_size_in_gb = 5L,
+                                           max_run = 3600L,
                                            input_mode = 'File',
                                            base_job_name = 'r-fable-trip-forecasting',
                                            output_path = output_path,
@@ -188,8 +188,8 @@ processor <- sagemaker$processing$ScriptProcessor(role = role,
                                                   image_uri = image,
                                                   command = list('/usr/bin/Rscript'),
                                                   instance_type = 'ml.t3.large',
-                                                  instance_count = 1,
-                                                  volume_size_in_gb = 5,
+                                                  instance_count = 1L,
+                                                  volume_size_in_gb = 5L,
                                                   max_runtime_in_seconds = 3600L,
                                                   base_job_name = 'r-fable-evaluation',
                                                   sagemaker_session = session)
@@ -220,7 +220,7 @@ result=processor$run(code = 'fable_sagemaker.r',
                      arguments = list('evaluate', hyperparameters$city),
                      wait = FALSE)
 ```
-Note that we are specifying `code = fable_sagemaker.r` which is going to be uploaded to S3 from the local filesyste and for SageMaker Processing job to consume. Don't be confused with the same file included in the `Dockerfile`. It just happens that we have everything in one single file and that the we have also included the same file in the `Dockerfile`. SageMaker Processing SDK actually allows you to specify any scripts to be executed as long as the dependency is satisfied in the container image. According to [how SageMaker Processing runs the container](https://docs.aws.amazon.com/sagemaker/latest/dg/build-your-own-processing-container.html#byoc-run-image) and how we design the `fable_sagemaker.r`, and we are passing arguments to be `list('evaluate', hyperparameters$city)` to execute the `evaluate` function with the city `hyperparameters$city`. 
+Note that we are specifying `code = 'fable_sagemaker.r'` which is going to be uploaded to S3 from the local filesyste and for SageMaker Processing job to consume. Don't be confused with the same file included in the `Dockerfile`. It just happens that we have everything in one single file and that the we have also included the same file in the `Dockerfile`. SageMaker Processing SDK actually allows you to specify any scripts to be executed as long as the dependency is satisfied in the container image. According to [how SageMaker Processing runs the container](https://docs.aws.amazon.com/sagemaker/latest/dg/build-your-own-processing-container.html#byoc-run-image) and how we design the `fable_sagemaker.r`, we are passing arguments to be `list('evaluate', hyperparameters$city)` to execute the `evaluate` function with the city `hyperparameters$city`. 
 
 ## Orchestrate with AWS Step Functions
 Let's take a look at how we can orchestrate a machine learning workflow for our forecasting model in R and Amazon SageMaker. 
