@@ -51,9 +51,9 @@ Depending on whether there is a model artifact as output for inferencing new dat
 
 ![sm_patterns](./doc/sm_patterns.png)
 
-For machine learning, you can use Amazon SageMaker Processing to process the data, use Amazon SageMaker Training and Tuning to train an optimal model, and use Amazon SageMaker Endpoint to host the model for live traffic or Batch Transform for batch data.
+For machine learning, you can use Amazon SageMaker Processing to process the data, use Amazon SageMaker Training and Tuning to train an optimal model, and use Amazon SageMaker Endpoint to host the model for live traffic or Batch Transform for batch data. This is the use case described in this repository.
 
-For statistical analyses, simulations and optimizations where your output is data insight, you can use Amazon SageMaker Processing for both data processing and for your full scale statistical workloads, and save the results into Amazon S3 or purposefully built database on AWS.
+For statistical analyses, simulations and optimizations where your output is data insight, you can use Amazon SageMaker Processing for both data processing and for your full scale statistical workloads, and save the results into Amazon S3 or purposefully built database on AWS. You can find an example in another blog and repository listed in [Additional resources](#additional-resources).
 
 ### From prototype to SageMaker-ready
 Let's walk through step-by-step to transform our prototype script ([`fable_demo.r`](./fable_demo.r)) to SageMaker-ready script ([`fable_sagemaker.r`](./fable_sagemaker.r)).
@@ -284,11 +284,13 @@ You are reaching the end of the demo. After the demo, please delete all the reso
 
 ![cleanup](./doc/cloudformation_cleanup.png)
 
-Note that the deletion initiated from CloudFormation console does not delete objects in S3 buckets, S3 buckets, verified email address in Amazon SES and models created in Amazon SageMaker. Please remove them individually. To remove the verified email adress in Amazon SES, please go to the [Amazon SES console](https://us-west-2.console.aws.amazon.com/ses/home?region=us-west-2#verified-senders-email:), select the email address you provided, and hit **Remove**.
+Note that the deletion initiated from CloudFormation console does not delete derivatives from the demo such as objects in S3 buckets, S3 buckets, verified email address in Amazon SES and models created in Amazon SageMaker. Please remove them individually. To remove the verified email adress in Amazon SES, please go to the [Amazon SES console](https://us-west-2.console.aws.amazon.com/ses/home?region=us-west-2#verified-senders-email:), select the email address you provided, and hit **Remove**.
 
 ![remove_email](./doc/email_remove.png)
 
 ## Additional resources
+
+Come and learn how to run pure statistical simulation with Amazon SageMaker Processing. We have a [blog](https://aws.amazon.com/blogs/machine-learning/performing-simulations-at-scale-with-amazon-sagemaker-processing-and-r-on-rstudio/) and a [repository](https://github.com/aws-samples/amazon-sagemaker-statistical-simulation-rstudio) showing you how.
 
 The human approval architecture is inspired by and has taken parts from [Deploying a Human Approval Project](https://docs.aws.amazon.com/step-functions/latest/dg/tutorial-human-approval.html).
 
