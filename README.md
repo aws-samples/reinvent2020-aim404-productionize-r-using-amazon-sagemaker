@@ -1,6 +1,6 @@
 # Productionizing R workload with Amazon SageMaker
 
-Welcome to reInvent 2020 AIML session 404 **Productionizing R workloads using Amazon SageMaker**. 
+Welcome to reInvent 2020 AIML session 404 **Productionizing R workloads using Amazon SageMaker**. You can watch the session and the demo in action in this [video](https://www.youtube.com/watch?v=Zpp0nfvqDCA).
 
 R language and its rich ecosystem with more than 16,000 packages dedicated to statistics and machine learning are widely used by statisticians and data scientists in industries, such as energy, healthcare, life science, and financial services. Customers using R can run simulation and machine learning securely and at scale with Amazon SageMaker while also reducing the cost of development by using the fully elastic resources in the cloud. In this session, learn how to build, train, and deploy statistical and ML models in R at scale using Amazon SageMaker from your IDE.
 
